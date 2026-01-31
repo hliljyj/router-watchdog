@@ -13,24 +13,50 @@ This service implements a **dead man's switch** using a Tasmota smart plug:
 1. A Tasmota smart plug controls power to your router
 2. The plug runs a countdown timer (RuleTimer)
 3. A cron job on an external server resets the timer via MQTT every 15 minutes
-4. If the cron can't reach the MQTT broker (because your internet is down), the timer expires and the plug power-cycles your router
+4. If the plug can't receive resets (because your home internet is down), the timer expires and power-cycles your router
 5. Router reboots → internet restored → cron reconnects → timer resets
 
-The key insight: this runs on an **external server** (VPS), not on your local network. When your home internet dies, the VPS can't reach the MQTT broker, so the watchdog timer expires and triggers the reboot.
+The key insight: the **timer runs locally on the smart plug**. It doesn't need internet to count down or trigger a restart.
 
 ```
-┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│   VPS Server    │───X───▶ │   MQTT Broker   │ ◀─────▶ │  Tasmota Plug   │
-│   (cron job)    │  fail   │   (HiveMQ)      │         │  (controls BT   │
-└─────────────────┘         └─────────────────┘         │   Hub power)    │
-                                                        └─────────────────┘
-        │                                                        │
-        │              Internet is DOWN                          │
-        │                                                        ▼
-        │                                               Timer expires...
-        │                                               Power cycles router
-        │                                                        │
-        └────────────────── Internet restored ◀──────────────────┘
+                    INTERNET
+    ┌──────────────────────────────────────────────┐
+    │                                              │
+    │   ┌─────────────┐       ┌─────────────┐     │
+    │   │ VPS Server  │       │ MQTT Broker │     │
+    │   │             │──────▶│  (HiveMQ)   │     │
+    │   │ sends reset │       │             │     │
+    │   │ every 15min │       └──────┬──────┘     │
+    │   └─────────────┘              │            │
+    │                                │            │
+    └────────────────────────────────│────────────┘
+                                     │
+                                     │ only works when
+                                     │ router has internet
+                                     ▼
+    ┌────────────────────────────────────────────────────┐
+    │                    HOME NETWORK                    │
+    │                                                    │
+    │   ┌─────────────┐          ┌─────────────┐        │
+    │   │  BT Hub     │          │ Tasmota     │        │
+    │   │  (router)   │◀─────────│ Smart Plug  │        │
+    │   │             │  power   │             │        │
+    │   └─────────────┘          │ local timer │        │
+    │                            │ counts down │        │
+    │                            └─────────────┘        │
+    └────────────────────────────────────────────────────┘
+
+Normal operation:
+  1. VPS sends "reset timer" command to MQTT broker every 15 min
+  2. Smart plug receives it via router → resets its local timer
+  3. Timer never expires, router stays on
+
+When router loses internet:
+  1. Smart plug goes offline (can't reach MQTT broker)
+  2. VPS keeps sending resets, but plug can't receive them
+  3. Local timer on plug keeps counting down (no internet needed)
+  4. Timer expires → plug turns OFF power → waits 30s → turns ON
+  5. Router reboots → internet restored → plug reconnects → timer resets
 ```
 
 ## Quick Start (Docker)
