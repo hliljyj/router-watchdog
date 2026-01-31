@@ -1,0 +1,9 @@
+services:
+  router-watchdog:
+    build: .
+    container_name: router-watchdog
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/var/log
