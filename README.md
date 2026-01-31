@@ -143,7 +143,7 @@ scp .env user@your-server:/root/router-watchdog/
 ssh user@your-server
 
 # Load the image
-gunzip -c router-watchdog.tar.gz | docker load
+docker load -i /root/router-watchdog/router-watchdog.tar
 
 # Create logs folder
 mkdir -p ~/router-watchdog/logs
