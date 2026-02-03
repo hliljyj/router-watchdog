@@ -98,10 +98,10 @@ The container runs:
 
 ```bash
 # Restart events
-tail -f logs/router-watchdog.log
+tail logs/router-watchdog.log
 
 # Cron output
-tail -f logs/cron.log
+tail logs/cron.log
 
 # Container logs
 docker compose logs -f
@@ -132,8 +132,9 @@ docker save router-watchdog:latest | gzip > router-watchdog.tar.gz
 ### 2. Copy to Server
 
 ```bash
-scp router-watchdog.tar.gz user@your-server:/root/
-scp .env user@your-server:/root/router-watchdog/
+ssh user@your-server "mkdir -p ~/router-watchdog"
+scp router-watchdog.tar user@your-server:~/router-watchdog/
+scp .env user@your-server:~/router-watchdog/
 ```
 
 ### 3. Run on Server
@@ -143,7 +144,7 @@ scp .env user@your-server:/root/router-watchdog/
 ssh user@your-server
 
 # Load the image
-docker load -i /root/router-watchdog/router-watchdog.tar
+docker load -i ~/router-watchdog/router-watchdog.tar
 
 # Create logs folder
 mkdir -p ~/router-watchdog/logs
@@ -173,7 +174,7 @@ docker run --rm \
 docker ps
 
 # Check logs
-tail -f ~/router-watchdog/logs/router-watchdog.log
+tail ~/router-watchdog/logs/router-watchdog.log
 ```
 
 ## Manual Setup (Without Docker)

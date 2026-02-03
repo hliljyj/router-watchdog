@@ -8,9 +8,19 @@ Run this via cron every 15 minutes.
 
 import sys
 import time
+from datetime import datetime
 from config import load_config, mqtt_publish_and_wait
 
 config = load_config()
+
+
+def _format_timestamp() -> str:
+    # Match logging's default asctime format: "YYYY-MM-DD HH:MM:SS,mmm"
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+
+
+def log(message: str, *, stream=sys.stdout) -> None:
+    print(f"{_format_timestamp()} {message}", file=stream)
 
 
 def reset_timer(seconds: int) -> bool:
@@ -26,7 +36,7 @@ def reset_timer(seconds: int) -> bool:
     )
 
     if result["error"]:
-        print(f"Error: {result['error']}", file=sys.stderr)
+        log(f"Error: {result['error']}", stream=sys.stderr)
 
     return result["success"]
 
@@ -36,8 +46,8 @@ if __name__ == "__main__":
     success = reset_timer(timer)
 
     if success:
-        print(f"Timer reset to {timer}s")
+        log(f"Timer reset to {timer}s")
         sys.exit(0)
     else:
-        print("Failed to reset timer", file=sys.stderr)
+        log("Failed to reset timer", stream=sys.stderr)
         sys.exit(1)
