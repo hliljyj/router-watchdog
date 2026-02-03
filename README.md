@@ -126,7 +126,7 @@ docker compose logs -f
 ```bash
 cd router-watchdog
 docker build -t router-watchdog:latest .
-docker save router-watchdog:latest | gzip > router-watchdog.tar.gz
+docker save -o router-watchdog.tar router-watchdog:latest
 ```
 
 ### 2. Copy to Server
