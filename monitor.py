@@ -30,6 +30,7 @@ class PowerMonitor:
     def __init__(self):
         self.last_power_state = None
         self.power_off_time = None
+        self.device_offline_time = None
         self.device_topic = config["device_topic"]
 
     def on_connect(self, client, userdata, flags, rc, properties=None):
@@ -38,6 +39,7 @@ class PowerMonitor:
             client.subscribe(f"stat/{self.device_topic}/POWER")
             client.subscribe(f"stat/{self.device_topic}/RESULT")
             client.subscribe(f"tele/{self.device_topic}/STATE")
+            client.subscribe(f"tele/{self.device_topic}/LWT")
         else:
             logger.error(f"Connection failed with code {rc}")
 
@@ -50,6 +52,11 @@ class PowerMonitor:
 
         if power_state:
             self._handle_power_change(power_state)
+            return
+
+        lwt_state = self._parse_lwt_state(msg.topic, payload)
+        if lwt_state:
+            self._handle_lwt_change(lwt_state)
 
     def _parse_power_state(self, topic: str, payload: str) -> str | None:
         """Extract power state from various MQTT message formats."""
@@ -65,6 +72,27 @@ class PowerMonitor:
                 pass
 
         return None
+
+    def _parse_lwt_state(self, topic: str, payload: str) -> str | None:
+        """Extract LWT state from Tasmota LWT topic."""
+        if topic == f"tele/{self.device_topic}/LWT":
+            return payload.upper()
+        return None
+
+    def _handle_lwt_change(self, lwt_state: str):
+        """Log LWT transitions (Online/Offline) with downtime calculation."""
+        now = datetime.now()
+        
+        if lwt_state == "OFFLINE":
+            self.device_offline_time = now
+            logger.warning("DEVICE OFFLINE - MQTT LWT indicates disconnect")
+        elif lwt_state == "ONLINE":
+            if self.device_offline_time:
+                downtime = (now - self.device_offline_time).total_seconds()
+                logger.info(f"DEVICE ONLINE - was offline for {downtime:.1f}s")
+                self.device_offline_time = None
+            else:
+                logger.info("DEVICE ONLINE - MQTT LWT indicates reconnect")
 
     def _handle_power_change(self, new_state: str):
         """Log power state transitions."""
