@@ -6,4 +6,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./logs:/var/log
+      - watchdog-logs:/var/log
+
+volumes:
+  watchdog-logs:
