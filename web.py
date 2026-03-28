@@ -100,10 +100,15 @@ HTML = """
     } catch (e) {
       console.error(e);
     }
+    return Promise.resolve();
   }
 
-  refreshLogs();
-  setInterval(refreshLogs, 30000);
+  function scrollToBottom() {
+    document.querySelectorAll('pre').forEach(el => el.scrollTop = el.scrollHeight);
+  }
+
+  refreshLogs().then(scrollToBottom);
+  setInterval(() => refreshLogs().then(scrollToBottom), 30000);
 </script>
 </body>
 </html>
