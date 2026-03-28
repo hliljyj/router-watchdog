@@ -14,7 +14,10 @@ COPY config.py .
 COPY reset_timer.py .
 COPY seed_rule.py .
 COPY monitor.py .
+COPY web.py .
 COPY entrypoint.sh .
+
+EXPOSE 5000
 
 RUN chmod +x entrypoint.sh
 

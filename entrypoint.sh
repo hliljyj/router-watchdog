@@ -17,6 +17,10 @@ cron
 echo "Starting router watchdog..."
 echo "  - Cron job: every 15 minutes"
 echo "  - Monitor: listening for power events"
+echo "  - Web UI: http://0.0.0.0:5000"
+
+# Start web UI in background
+python3 /app/web.py &
 
 # Run monitor in foreground
 exec python3 /app/monitor.py
