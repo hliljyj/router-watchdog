@@ -110,6 +110,11 @@ HTML = """
 """
 
 
+@app.route("/healthz")
+def healthz():
+    return "ok"
+
+
 @app.route("/")
 def index():
     return render_template_string(HTML)

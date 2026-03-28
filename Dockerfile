@@ -2,8 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install cron
-RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
+# Install cron and curl (for health check)
+RUN apt-get update && apt-get install -y cron curl && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -20,5 +20,8 @@ COPY entrypoint.sh .
 EXPOSE 5000
 
 RUN chmod +x entrypoint.sh
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:5000/healthz || exit 1
 
 CMD ["./entrypoint.sh"]
