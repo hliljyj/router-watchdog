@@ -48,6 +48,14 @@ if __name__ == "__main__":
     if success:
         log(f"Timer reset to {timer}s")
         sys.exit(0)
+
+    log("Failed to reset timer, retrying in 60s...", stream=sys.stderr)
+    time.sleep(60)
+    success = reset_timer(timer)
+
+    if success:
+        log(f"Timer reset to {timer}s (retry succeeded)")
+        sys.exit(0)
     else:
         log("Failed to reset timer", stream=sys.stderr)
         sys.exit(1)
