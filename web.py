@@ -57,8 +57,8 @@ HTML = """
   <h1>Router Watchdog</h1>
   <div class="actions">
     <button class="btn-seed" onclick="run('seed')">Initialize Rule</button>
-    <button class="btn-reset" onclick="run('reset')">Reset Timer</button>
-    <button id="btn-cron" class="btn-cron" onclick="toggleCron()">Auto Reset: ...</button>
+    <button class="btn-reset" onclick="run('ping')">Ping</button>
+    <button id="btn-cron" class="btn-cron" onclick="toggleCron()">Auto Ping: ...</button>
     <button class="btn-refresh" onclick="refreshLogs()">Refresh Logs</button>
   </div>
   <div id="status" class="status"></div>
@@ -115,7 +115,7 @@ HTML = """
       const res = await fetch('/api/cron');
       const data = await res.json();
       const btn = document.getElementById('btn-cron');
-      btn.textContent = 'Auto Reset: ' + (data.enabled ? 'ON' : 'OFF');
+      btn.textContent = 'Auto Ping: ' + (data.enabled ? 'ON' : 'OFF');
       btn.className = 'btn-cron' + (data.enabled ? '' : ' off');
     } catch (e) {
       console.error(e);
@@ -125,7 +125,7 @@ HTML = """
   async function toggleCron() {
     const btns = document.querySelectorAll('button');
     btns.forEach(b => b.disabled = true);
-    setStatus('Toggling auto reset...', 'running');
+    setStatus('Toggling auto ping...', 'running');
     try {
       const res = await fetch('/api/cron', { method: 'POST' });
       const data = await res.json();
@@ -181,25 +181,25 @@ def seed():
     )
 
 
-CRON_ENTRY = '*/15 * * * * cd /app && export $(cat /app/.env | xargs) && /usr/local/bin/python3 /app/reset_timer.py >> /var/log/cron.log 2>&1; tail -n 1000 /var/log/cron.log > /var/log/cron.log.tmp && mv /var/log/cron.log.tmp /var/log/cron.log'
+CRON_ENTRY = '*/15 * * * * cd /app && export $(cat /app/.env | xargs) && /usr/local/bin/python3 /app/ping.py >> /var/log/cron.log 2>&1; tail -n 1000 /var/log/cron.log > /var/log/cron.log.tmp && mv /var/log/cron.log.tmp /var/log/cron.log'
 
 
 @app.route("/api/cron", methods=["GET"])
 def cron_status():
     result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
-    enabled = "reset_timer.py" in result.stdout
+    enabled = "ping.py" in result.stdout
     return jsonify(enabled=enabled)
 
 
 @app.route("/api/cron", methods=["POST"])
 def cron_toggle():
     result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
-    enabled = "reset_timer.py" in result.stdout
+    enabled = "ping.py" in result.stdout
 
     if enabled:
         # Remove cron job
         subprocess.run(["crontab", "-r"], capture_output=True)
-        return jsonify(success=True, message="Auto reset disabled")
+        return jsonify(success=True, message="Auto ping disabled")
     else:
         # Add cron job
         subprocess.run(
@@ -207,14 +207,14 @@ def cron_toggle():
             input=CRON_ENTRY + "\n",
             capture_output=True, text=True,
         )
-        return jsonify(success=True, message="Auto reset enabled (every 15 min)")
+        return jsonify(success=True, message="Auto ping enabled (every 15 min)")
 
 
-@app.route("/api/reset", methods=["POST"])
-def reset():
+@app.route("/api/ping", methods=["POST"])
+def ping():
     result = subprocess.run(
-        [sys.executable, "/app/reset_timer.py"],
-        capture_output=True, text=True, timeout=30,
+        [sys.executable, "/app/ping.py"],
+        capture_output=True, text=True, timeout=120,
     )
     return jsonify(
         success=result.returncode == 0,

@@ -12,49 +12,37 @@ from config import load_config, mqtt_publish_and_wait
 
 config = load_config()
 
-RULE1_TEXT = (
-    "ON System#Boot DO RuleTimer1 1800 ENDON "
-    "ON Rules#Timer=1 DO Backlog Power Off; Delay 300; Power On; RuleTimer1 3600 ENDON"
-)
-
-RULE2_TEXT = (
-    "ON System#Boot DO RuleTimer2 1800 ENDON "
-    "ON Rules#Timer=2 DO Backlog Power Off; Delay 300; Power On; RuleTimer2 3600 ENDON"
-)
-
-RULE3_TEXT = (
-    "ON Time#Minute|15 DO Ping4 www.google.com ENDON "
-    "ON Ping#www.google.com#Reachable==true DO RuleTimer2 1920 ENDON"
-)
-
-
 def seed_rule() -> bool:
-    """Program Rule1, Rule2, and Rule3 into the Tasmota device."""
+    """Program Rule1 and Rule2 into the Tasmota device."""
+    timer = config["timer_seconds"]
+    boot_timer = timer
+    fallback_timer = timer * 2
+
+    rule1 = (
+        f"ON System#Boot DO RuleTimer1 {boot_timer} ENDON "
+        f"ON Rules#Timer=1 DO Backlog Power Off; Delay 300; Power On; RuleTimer1 {fallback_timer} ENDON"
+    )
+    rule2 = f"ON Ping#google.com#Reachable DO RuleTimer1 {timer} ENDON"
 
     def publish(client, device_topic):
         # Set Rule1 (dead man's switch)
-        client.publish(f"cmnd/{device_topic}/Rule1", RULE1_TEXT, qos=0)
+        client.publish(f"cmnd/{device_topic}/Rule1", rule1, qos=0)
         time.sleep(0.5)
         client.publish(f"cmnd/{device_topic}/Rule1", "1", qos=0)
-        # Set Rule2 (VPS dead man's switch - only VPS resets RuleTimer2)
+        # Set Rule2 (DNS ping resets timer)
         time.sleep(0.5)
-        client.publish(f"cmnd/{device_topic}/Rule2", RULE2_TEXT, qos=0)
+        client.publish(f"cmnd/{device_topic}/Rule2", rule2, qos=0)
         time.sleep(0.5)
         client.publish(f"cmnd/{device_topic}/Rule2", "1", qos=0)
-        # Set Rule3 (DNS health check)
+        # Start timer
         time.sleep(0.5)
-        client.publish(f"cmnd/{device_topic}/Rule3", RULE3_TEXT, qos=0)
-        time.sleep(0.5)
-        client.publish(f"cmnd/{device_topic}/Rule3", "1", qos=0)
-        # Start both timers immediately
-        time.sleep(0.5)
-        client.publish(f"cmnd/{device_topic}/RuleTimer1", "3600", qos=0)
-        client.publish(f"cmnd/{device_topic}/RuleTimer2", "3600", qos=0)
+        client.publish(f"cmnd/{device_topic}/RuleTimer1", str(fallback_timer), qos=0)
 
     result = mqtt_publish_and_wait(
         config=config,
         client_id=f"router-wd-seed-{int(time.time())}",
         publish_fn=publish,
+        timeout=10.0,
     )
 
     if result["error"]:

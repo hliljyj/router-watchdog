@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy scripts
 COPY config.py .
-COPY reset_timer.py .
+COPY ping.py .
 COPY seed_rule.py .
 COPY monitor.py .
 COPY web.py .

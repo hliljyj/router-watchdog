@@ -9,7 +9,7 @@ touch /var/log/cron.log
 
 # Setup cron job (every 15 minutes)
 # Keep only the most recent 1000 lines to prevent unbounded growth.
-echo "*/15 * * * * cd /app && export \$(cat /app/.env | xargs) && /usr/local/bin/python3 /app/reset_timer.py >> /var/log/cron.log 2>&1; tail -n 1000 /var/log/cron.log > /var/log/cron.log.tmp && mv /var/log/cron.log.tmp /var/log/cron.log" | crontab -
+echo "*/15 * * * * cd /app && export \$(cat /app/.env | xargs) && /usr/local/bin/python3 /app/ping.py >> /var/log/cron.log 2>&1; tail -n 1000 /var/log/cron.log > /var/log/cron.log.tmp && mv /var/log/cron.log.tmp /var/log/cron.log" | crontab -
 
 # Start cron in background
 cron
