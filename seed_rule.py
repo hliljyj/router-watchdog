@@ -46,6 +46,10 @@ def seed_rule() -> bool:
         client.publish(f"cmnd/{device_topic}/Rule3", RULE3_TEXT, qos=0)
         time.sleep(0.5)
         client.publish(f"cmnd/{device_topic}/Rule3", "1", qos=0)
+        # Start both timers immediately
+        time.sleep(0.5)
+        client.publish(f"cmnd/{device_topic}/RuleTimer1", "3600", qos=0)
+        client.publish(f"cmnd/{device_topic}/RuleTimer2", "3600", qos=0)
 
     result = mqtt_publish_and_wait(
         config=config,
