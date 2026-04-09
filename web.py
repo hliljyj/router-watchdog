@@ -37,6 +37,8 @@ HTML = """
   .btn-seed { background: #e94560; color: white; }
   .btn-reset { background: #0f3460; color: white; }
   .btn-refresh { background: #533483; color: white; }
+  .btn-cron { background: #2d6a4f; color: white; }
+  .btn-cron.off { background: #6c757d; }
   .status { margin-bottom: 20px; padding: 10px; border-radius: 4px; display: none; }
   .status.success { display: block; background: #1b4332; color: #95d5b2; }
   .status.error { display: block; background: #462124; color: #f4978e; }
@@ -56,6 +58,7 @@ HTML = """
   <div class="actions">
     <button class="btn-seed" onclick="run('seed')">Initialize Rule</button>
     <button class="btn-reset" onclick="run('reset')">Reset Timer</button>
+    <button id="btn-cron" class="btn-cron" onclick="toggleCron()">Auto Reset: ...</button>
     <button class="btn-refresh" onclick="refreshLogs()">Refresh Logs</button>
   </div>
   <div id="status" class="status"></div>
@@ -107,7 +110,35 @@ HTML = """
     document.querySelectorAll('pre').forEach(el => el.scrollTop = el.scrollHeight);
   }
 
+  async function updateCronStatus() {
+    try {
+      const res = await fetch('/api/cron');
+      const data = await res.json();
+      const btn = document.getElementById('btn-cron');
+      btn.textContent = 'Auto Reset: ' + (data.enabled ? 'ON' : 'OFF');
+      btn.className = 'btn-cron' + (data.enabled ? '' : ' off');
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function toggleCron() {
+    const btns = document.querySelectorAll('button');
+    btns.forEach(b => b.disabled = true);
+    setStatus('Toggling auto reset...', 'running');
+    try {
+      const res = await fetch('/api/cron', { method: 'POST' });
+      const data = await res.json();
+      setStatus(data.message, 'success');
+      updateCronStatus();
+    } catch (e) {
+      setStatus('Request failed: ' + e, 'error');
+    }
+    btns.forEach(b => b.disabled = false);
+  }
+
   refreshLogs().then(scrollToBottom);
+  updateCronStatus();
   setInterval(() => refreshLogs().then(scrollToBottom), 30000);
 </script>
 </body>
@@ -148,6 +179,35 @@ def seed():
         success=result.returncode == 0,
         message=result.stdout.strip() or result.stderr.strip(),
     )
+
+
+CRON_ENTRY = '*/15 * * * * cd /app && export $(cat /app/.env | xargs) && /usr/local/bin/python3 /app/reset_timer.py >> /var/log/cron.log 2>&1; tail -n 1000 /var/log/cron.log > /var/log/cron.log.tmp && mv /var/log/cron.log.tmp /var/log/cron.log'
+
+
+@app.route("/api/cron", methods=["GET"])
+def cron_status():
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    enabled = "reset_timer.py" in result.stdout
+    return jsonify(enabled=enabled)
+
+
+@app.route("/api/cron", methods=["POST"])
+def cron_toggle():
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    enabled = "reset_timer.py" in result.stdout
+
+    if enabled:
+        # Remove cron job
+        subprocess.run(["crontab", "-r"], capture_output=True)
+        return jsonify(success=True, message="Auto reset disabled")
+    else:
+        # Add cron job
+        subprocess.run(
+            ["crontab", "-"],
+            input=CRON_ENTRY + "\n",
+            capture_output=True, text=True,
+        )
+        return jsonify(success=True, message="Auto reset enabled (every 15 min)")
 
 
 @app.route("/api/reset", methods=["POST"])
