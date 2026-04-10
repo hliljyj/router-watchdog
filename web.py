@@ -37,6 +37,7 @@ HTML = """
   .btn-seed { background: #e94560; color: white; }
   .btn-reset { background: #0f3460; color: white; }
   .btn-refresh { background: #533483; color: white; }
+  .btn-restart { background: #b5179e; color: white; }
   .btn-cron { background: #2d6a4f; color: white; }
   .btn-cron.off { background: #6c757d; }
   .status { margin-bottom: 20px; padding: 10px; border-radius: 4px; display: none; }
@@ -58,6 +59,7 @@ HTML = """
   <div class="actions">
     <button class="btn-seed" onclick="run('seed')">Initialize Rule</button>
     <button class="btn-reset" onclick="run('ping')">Ping</button>
+    <button class="btn-restart" onclick="if(confirm('Restart the router?'))run('restart')">Restart Router</button>
     <button id="btn-cron" class="btn-cron" onclick="toggleCron()">Auto Ping: ...</button>
     <button class="btn-refresh" onclick="refreshLogs()">Refresh Logs</button>
   </div>
@@ -208,6 +210,37 @@ def cron_toggle():
             capture_output=True, text=True,
         )
         return jsonify(success=True, message="Auto ping enabled (every 15 min)")
+
+
+@app.route("/api/restart", methods=["POST"])
+def restart():
+    from config import create_mqtt_client
+    import time as _time
+    import threading
+
+    device_topic = config["device_topic"]
+    done = threading.Event()
+
+    def on_connect(client, userdata, flags, rc, properties=None):
+        if rc == 0:
+            client.publish(f"cmnd/{device_topic}/RuleTimer1", "5", qos=0)
+            done.set()
+
+    client = create_mqtt_client(f"router-wd-restart-{int(_time.time())}", config)
+    client.on_connect = on_connect
+
+    try:
+        client.connect(config["broker"], config["port"], keepalive=30)
+        client.loop_start()
+        done.wait(timeout=10)
+        client.loop_stop()
+        client.disconnect()
+    except Exception as e:
+        return jsonify(success=False, message=str(e))
+
+    if done.is_set():
+        return jsonify(success=True, message="Router will restart in ~5 seconds")
+    return jsonify(success=False, message="Failed to send restart command")
 
 
 @app.route("/api/ping", methods=["POST"])
