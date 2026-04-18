@@ -22,7 +22,7 @@ def seed_rule() -> bool:
         f"ON System#Boot DO RuleTimer1 {boot_timer} ENDON "
         f"ON Rules#Timer=1 DO Backlog Power Off; Delay 300; Power On; RuleTimer1 {fallback_timer} ENDON"
     )
-    rule2 = f"ON Ping#google.com#Reachable==1 DO RuleTimer1 {timer} ENDON"
+    rule2 = f"ON Ping#google.com#Success>0 DO RuleTimer1 {timer} ENDON"
 
     def publish(client, device_topic):
         # Set Rule1 (dead man's switch)
